@@ -1,3 +1,14 @@
+.venv/
 .env/
 __pycache__/
 .ipynb_checkpoints/
+.cache/
+sklearn_data/
+data/
+models/
+*.pkl
+*.joblib
+*.pt
+*.pth
+.DS_Store
+Thumbs.db
