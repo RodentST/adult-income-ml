@@ -1,87 +1,131 @@
 # Adult Income ML
 
 ## Project summary
-This project predicts whether a person earns more than 50K per year using the Adult dataset from OpenML, version 2. It compares classification pipelines and a PyTorch neural network.
+
+In this project, I used the Adult Income dataset from OpenML (version 2) to predict whether a person earns more than 50K per year. I explored the data, compared several classical machine-learning models, and trained two neural networks in PyTorch. My goal was not only to get a good score, but also to understand how the models are evaluated and what their mistakes tell us.
 
 ## Project files
-- `01_eda.ipynb`: dataset exploration (Part 1).
-- `02_models.ipynb`: preprocessing, model comparison, error analysis and PyTorch (Parts 2 to 4).
-- `figures/learning_curve.png`: training and validation loss for both networks.
-- `requirements.txt`: Python packages.
+
+- `01_eda.ipynb` — data exploration, visualisations and observations (Part 1).
+- `02_models.ipynb` — preprocessing, baseline models, model comparison, error analysis and neural networks (Parts 2–4).
+- `figures/learning_curve.png` — training and validation loss curves for the neural networks.
+- `requirements.txt` — main Python dependencies.
 
 ## How to run
-Tested notebook environment must include Python, numpy, pandas, scikit-learn, matplotlib, torch and jupyter. The notebook was generated and run using Python 3.14.5.
+
+**Python:** 3.12 or newer. The saved notebook results were produced with Python 3.14.5.
+
+Open PowerShell in the repository folder and run:
 
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe -m notebook
+.\.venv\Scripts\python.exe -m jupyter lab
 ```
 
-Run `01_eda.ipynb`, then `02_models.ipynb` using Restart Kernel and Run All Cells. The random seed for the train/test split is 42; the PyTorch experiments use seeds 42 to 46. OpenML downloads the dataset automatically.
+The launch command above uses JupyterLab, which is included in the simplified `requirements.txt`. Open `01_eda.ipynb` first, then `02_models.ipynb`. For each notebook, select the Python kernel, choose **Restart Kernel and Run All Cells**, and save the notebook with its outputs.
 
-## Preprocessing and leakage prevention
-Data is split 80/20 using stratification before fitting transformations. The preprocessing object imputes numeric missing values with the median, scales numeric columns, imputes categorical missing values using the most frequent category and one-hot encodes categories. The preprocessor is fitted only on training folds or the PyTorch training subset. The test set is never used to choose the model parameters.
+The dataset is downloaded from **OpenML Adult, version 2**. Internet access may be needed on the first run. The train/test split uses seed **42**, and the PyTorch experiments use seeds **42–46**. The README is edited manually; running the notebooks no longer creates or overwrites it.
 
-## Baselines: 5-fold CV
-| Model | accuracy mean | accuracy std | precision mean | precision std | recall mean | recall std | f1 mean | f1 std | roc_auc mean | roc_auc std |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+The saved outputs show completed notebook runs. A fresh installation in a new virtual environment has **not been confirmed in this README**, so it should not be described as tested until that check is performed.
+
+## Data and preprocessing
+
+The Adult dataset contains **48,842 rows** and **14 input features**. I use an **80/20 stratified train/test split** so that both sets keep approximately the same class proportions.
+
+A single preprocessing definition is reused in the model pipelines:
+
+- Missing numerical values are filled with the median, and numerical features are scaled.
+- Missing categorical values are filled with the most frequent category, and categorical features are one-hot encoded.
+- The preprocessor is fitted on training folds or the neural-network training subset, not on the held-out test set.
+
+This separation is important because preprocessing fitted on the test set could cause **data leakage** and make the results look better than they really are. I used the test set for final evaluation, not for selecting hyperparameters. However, a small difference between CV and test scores alone cannot prove that leakage is absent.
+
+## Baselines: 5-fold cross-validation
+
+| Model | Accuracy mean | Accuracy std | Precision mean | Precision std | Recall mean | Recall std | F1 mean | F1 std | ROC AUC mean | ROC AUC std |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | Majority Dummy | 0.7607 | 0.0000 | 0.0000 | 0.0000 | 0.0000 | 0.0000 | 0.0000 | 0.0000 | 0.5000 | 0.0000 |
 | Logistic Regression | 0.8513 | 0.0051 | 0.7325 | 0.0170 | 0.5966 | 0.0070 | 0.6576 | 0.0098 | 0.9055 | 0.0038 |
 
-## Classical models: 5-fold CV
+The majority-class baseline reaches **76.07% accuracy**, but it never identifies a high-income person. This showed me why accuracy alone is not enough for this dataset. Recall, F1 and ROC AUC help describe performance more clearly.
+
+## Classical models: 5-fold cross-validation
+
 | Model | ROC AUC mean | ROC AUC std | F1 mean | F1 std |
-| --- | --- | --- | --- | --- |
+| --- | ---: | ---: | ---: | ---: |
 | Logistic Regression | 0.9055 | 0.0038 | 0.6576 | 0.0098 |
 | Random Forest | 0.9009 | 0.0043 | 0.6653 | 0.0089 |
 | Hist Gradient Boosting | 0.9276 | 0.0024 | 0.7082 | 0.0085 |
 
-## Boosting parameter search
-Tried values: {'model__learning_rate': [0.05, 0.1], 'model__max_depth': [5, 10], 'model__max_iter': [100, 200]}.
+Hist Gradient Boosting had the highest mean ROC AUC and F1 among these classical models in cross-validation.
 
-Best values: {'model__learning_rate': 0.05, 'model__max_depth': 10, 'model__max_iter': 200}. Best CV ROC AUC: 0.9275.
+## Boosting parameter search
+
+I used `GridSearchCV` to search the following values:
+
+- `model__learning_rate`: 0.05, 0.1
+- `model__max_depth`: 5, 10
+- `model__max_iter`: 100, 200
+
+The best searched combination was **learning rate 0.05, maximum depth 10, and 200 iterations**. Its mean CV ROC AUC was **0.9275**. The default Hist Gradient Boosting model scored **0.9276**, so the search **did not improve the result**. The difference is very small.
+
+I use the name **Tuned Hist Gradient Boosting** in the final table because that model uses the parameters selected by the search, **not** because tuning made it better than the default model.
 
 ## Final test-set comparison
+
 | Model | Accuracy | Precision | Recall | F1 | ROC AUC |
-| --- | --- | --- | --- | --- | --- |
+| --- | ---: | ---: | ---: | ---: | ---: |
 | Logistic Regression | 0.8524 | 0.7414 | 0.5885 | 0.6562 | 0.9042 |
 | Random Forest | 0.8602 | 0.7430 | 0.6356 | 0.6851 | 0.9038 |
 | Tuned Hist Gradient Boosting | 0.8768 | 0.7929 | 0.6565 | 0.7183 | 0.9290 |
 | Plain MLP | 0.8574 | 0.7406 | 0.6252 | 0.6766 | 0.9114 |
 | Dropout MLP | 0.8580 | 0.7482 | 0.6140 | 0.6740 | 0.9123 |
 
-The two MLP rows are means of five test-set evaluations with different training seeds. Each classical model has one final fitted-model evaluation. MLP results should not be treated as directly controlled comparisons because training uses an internal validation split.
+**I recommend Hist Gradient Boosting** for this experiment. It achieved the best test **ROC AUC (0.9290)**, **F1 (0.7183)** and **accuracy (0.8768)** among the tested models. I think one possible reason is that boosting handles nonlinear relationships and feature interactions in tabular data well.
 
-The highest baseline cross-validation ROC AUC among the three classical model families is achieved by **Hist Gradient Boosting**. The boosting model was tuned on training folds. No parameters were chosen using test-set scores. Boosting CV-to-test ROC AUC difference: +0.0014. A small gap does not prove that leakage is absent.
+Its test ROC AUC was about **0.0014 higher** than the tuned CV ROC AUC when using the unrounded results. This is a small difference and suggests similar performance on the validation folds and test data. It does not, by itself, prove there was no leakage.
 
-## Neural network training curves
-![Plain and dropout MLP learning curves](figures/learning_curve.png)
+The two MLP rows are means across five training seeds. Each classical model has one final test-set evaluation. The comparison is not perfectly controlled: the MLP models used an internal validation split and trained their weights on **31,258 rows**, compared with **39,073 training rows** for the classical models.
 
-Both models use 64 and 32 hidden units, ReLU, BCEWithLogitsLoss, Adam (learning rate 0.001), batch size 256 and 20 epochs. Dropout is 0.2 in the regularised model. These are simple starting choices, not results of neural-network hyperparameter tuning.
+## Neural network training and learning curves
 
-Neural network five-seed standard deviations:
+![Plain MLP and Dropout MLP learning curves](figures/learning_curve.png)
+
+Both networks have hidden layers of **64 and 32 units**, ReLU activation, `BCEWithLogitsLoss`, and the Adam optimizer with a **0.001 learning rate**. They use a batch size of **256** for **20 epochs**. The second network includes **0.2 dropout**.
+
+I chose a small network and a learning rate of 0.001 as reasonable starting points, not because a hyperparameter search proved that they were optimal. A future experiment could try other network sizes and learning rates.
+
+For seed 42, the **Plain MLP** reached its lowest validation loss of **0.3043 at epoch 12**, but validation loss increased to **0.3092 at epoch 20** while training loss continued to decrease. This is a sign of **mild overfitting**. The **Dropout MLP** also showed a small increase in validation loss after its minimum (**0.3052 at epoch 7**). Both models learned useful patterns, so I would not call them strongly underfitting. I would try **early stopping** for both.
+
+### Did dropout help?
+
+Overall, **not convincingly**. Across five seeds, the mean ROC AUC increased only from **0.9114 ± 0.0008** (Plain MLP) to **0.9123 ± 0.0005** (Dropout MLP). But recall decreased from **0.6252** to **0.6140**, and F1 decreased from **0.6766** to **0.6740**. The mean minimum validation loss was also slightly worse with dropout: **0.3047** versus **0.3042**.
+
+This small ROC AUC gain is not enough for me to say that dropout improved the model overall. I would try the plain network with early stopping before adding more regularisation.
+
+Five-seed standard deviations:
+
 | Model | Accuracy | Precision | Recall | F1 | ROC AUC |
-| --- | --- | --- | --- | --- | --- |
+| --- | ---: | ---: | ---: | ---: | ---: |
 | Dropout MLP | 0.0008 | 0.0147 | 0.0249 | 0.0096 | 0.0005 |
 | Plain MLP | 0.0012 | 0.0246 | 0.0430 | 0.0168 | 0.0008 |
 
-Mean minimum validation loss for Plain MLP: 0.3042; for Dropout MLP: 0.3047. Compare those results and the plotted loss curves before claiming that dropout helped.
-
 ## Error analysis
-The notebook compares false negatives, true positives and true negatives by occupation, education number, working hours, capital gain and sex. Five errors are selected by distinct conditions, not just by row order. It also reports group-level precision and recall by sex and race.
 
-- False negatives have an average education-num of 10.08, versus 12.40 for true positives.
+I compared **false negatives (FN)**, **true positives (TP)** and **true negatives (TN)**, and inspected selected mistakes in the notebook.
 
-- Average weekly hours are 44.12 for FN, 46.26 for TP, and 38.17 for TN.
+- FN records have a lower average `education-num` than TP records: **10.08 vs 12.40**. The model seems to have more difficulty recognising some high-income people with lower education levels.
+- Average weekly hours are **44.12 for FN**, **46.26 for TP** and **38.17 for TN**. Working hours alone cannot explain all predictions.
+- Only **0.62% of FN** records have positive capital gain, compared with **33.94% of TP** records. The model may rely strongly on this signal when predicting high income.
+- `Craft-repair` represents about **22.6% of FN** records but only **7.1% of TP** records. This is one group of mistakes I would investigate further.
 
-- The share with a positive capital-gain is 0.62% among FN and 33.94% among TP.
+Next, I would study errors by education and occupation, and try different classification thresholds using **validation data**, while checking the trade-off between precision and recall.
 
-- Among false negatives, 81.20% are Male, compared with 86.32% among true positives.
+### Metrics by demographic group
 
-
-Group-level metrics:
 | Feature | Group | Rows | Precision | Recall |
-| --- | --- | --- | --- | --- |
+| --- | --- | ---: | ---: | ---: |
 | sex | Female | 3259 | 0.8015 | 0.5817 |
 | sex | Male | 6510 | 0.7915 | 0.6702 |
 | race | Amer-Indian-Eskimo | 96 | 1.0000 | 0.3077 |
@@ -90,17 +134,36 @@ Group-level metrics:
 | race | Other | 82 | 1.0000 | 0.6000 |
 | race | White | 8312 | 0.7923 | 0.6635 |
 
-## Key findings
-- The majority-class dummy baseline shows why accuracy by itself is insufficient.
-- Stratified cross-validation reports variation across training folds.
-- Correlated features can share permutation importance.
-- The PyTorch networks use fewer weight-update rows because part of the training data is held out for validation.
+The `Amer-Indian-Eskimo` and `Other` groups have only **96** and **82** test records. Their precision of **1.0000** does **not** prove that the model makes perfect predictions for these groups. Small samples make these estimates unreliable.
+
+## Key findings from EDA and error analysis
+
+1. The dataset is imbalanced: **76.07%** of records belong to the `<=50K` class. A model can have fairly high accuracy and still miss all high-income cases.
+2. The share of people earning above 50K increases from **6.67%** for those working 1–29 hours to **40.90%** for those working 51+ hours. This is an association, not proof that longer work hours cause higher income.
+3. Among people with positive capital gain, **61.73%** earn above 50K, compared with **20.52%** when capital gain is zero. The maximum `capital-gain` is the coded value **99999**, appearing in **244** records.
+4. False negatives have a lower average education number than true positives (**10.08 vs 12.40**) and are much less likely to have positive capital gain (**0.62% vs 33.94%**).
+5. Permutation importance ranks `marital-status` (**0.0999**) and `capital-gain` (**0.0615**) highest. This mostly supports my expectation that capital gain would be useful, while marital status was more important than I expected. Importance does not prove causation.
 
 ## Limitations and ethics
-This is a demonstration experiment, not a model for employment, lending or individual decisions. The Adult census-style data is historical, may not represent current populations, and contains sensitive attributes such as sex and race. Proxy features can preserve group-related information even if sensitive attributes are removed. Before real use, check dataset representativeness, group-level errors, calibration, privacy and relevant regulations.
 
-## What was hard and what needs checking
-The main challenges were making preprocessing reproducible, keeping CV separate from test evaluation, comparing MLP losses, and reporting numbers consistently. The complete notebook should be reviewed and rerun locally.
+This is a learning experiment, not a model for employment, lending, or decisions about individual people. The Adult dataset is historical and may not represent people today. It also contains sensitive features such as sex and race. Other features, such as occupation and relationship, can act as proxies for demographic information. Before any real use, the data, group-level errors, calibration, privacy and relevant regulations would need much more careful checking.
+
+## What I learned and what was difficult
+
+This was my **first serious Python project**. Before this, I had mainly used Python for simple things, such as calculators, so working with a full dataset and several libraries was new to me.
+
+I also wanted to understand **how machine learning works in a more scientific way**, instead of just thinking that a neural network somehow makes predictions. I spent time trying to understand training, validation, metrics, and why different models can get different results. I learned that a higher accuracy score does not always mean a better model.
+
+**Jupyter Notebook** was another new tool for me. I had to learn how notebooks, cells, kernels and saved outputs work. I also found **GitHub** challenging at first, especially keeping track of changes, commits and updated files. Working with both the code and the written explanations was harder than I expected.
+
+I still have more to learn, but this project helped me understand the complete ML workflow much better, from exploring data to evaluating models and explaining their errors.
 
 ## Target-label cleanup
-The earlier code used `.rstrip('.')` on the target labels, but OpenML Adult version 2 does not add a trailing period to its labels. That operation was removed here. The provenance of that earlier line has not been established.
+
+I used `.rstrip('.')` as a precaution because removing trailing dots is a common practice when cleaning text labels in datasets.
+
+Some versions of the Adult dataset contain labels like `>50K.` instead of `>50K`, so I wanted to avoid possible problems with inconsistent labels.
+
+Later, I found out that OpenML Adult version 2 already has labels without trailing dots. This made the operation unnecessary.
+I included it just to be safe, even though it turned out that I did not need it.
+
