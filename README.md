@@ -15,7 +15,7 @@ In this project, I used the Adult Income dataset from OpenML (version 2) to pred
 
 **Python:** 3.12 or newer. The saved notebook results were produced with Python 3.14.5.
 
-Open PowerShell in the repository folder and run:
+On Windows, open PowerShell in the repository folder and run:
 
 ```powershell
 py -m venv .venv
